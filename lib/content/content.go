@@ -13,8 +13,46 @@ import (
 
 // Path: lib/content/content.go
 
-// PrepareContent prepares the content for uploading
-func PrepareContent(filePath string) (fileName string, reader io.Reader, size int64, err error) {
+func UploadContent(filePath string, config *c.Config, maxDays string, maxDownloads string) (*http.Response, error) {
+	client := &http.Client{}
+
+	fileName, reader, size, err := prepareContent(filePath)
+	if err != nil {
+		fmt.Println("Error preparing content:", err)
+	}
+
+	req, err := http.NewRequest("PUT", config.BaseURL+"/"+fileName, reader)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %w", err)
+	}
+
+	req.Header.Add("Max-Days", maxDays)
+	req.Header.Add("Max-Downloads", maxDownloads)
+
+	// Yeşil ilerleme çubuğu
+	bar := pb.ProgressBarTemplate(`{{ string . "prefix" }} {{ green . "[=>" "=>"] .Bar "[<=" "<="] "}} {{percent . }}`).Start64(size)
+	barReader := bar.NewProxyReader(reader)
+	req.Body = io.NopCloser(barReader)
+	req.ContentLength = size
+
+	req.SetBasicAuth(config.User, config.Pass)
+	resp, err := client.Do(req)
+	bar.Finish()
+
+	if err != nil {
+		return nil, fmt.Errorf("error uploading: %w", err)
+	}
+
+	err = lib.PrintResponse(resp, size, config, fileName)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return resp, nil
+}
+
+// prepareContent prepares the content for uploading
+func prepareContent(filePath string) (fileName string, reader io.Reader, size int64, err error) {
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
 		return
@@ -50,41 +88,4 @@ func PrepareContent(filePath string) (fileName string, reader io.Reader, size in
 	reader, err = os.Open(filePath)
 	size = fileInfo.Size()
 	return
-}
-
-func UploadContent(filePath string, config *c.Config, maxDays string, maxDownloads string) (*http.Response, error) {
-	client := &http.Client{}
-
-	fileName, reader, size, err := PrepareContent(filePath)
-	if err != nil {
-		fmt.Println("Error preparing content:", err)
-	}
-
-	req, err := http.NewRequest("PUT", config.BaseURL+"/"+fileName, reader)
-	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
-	}
-
-	req.Header.Add("Max-Days", maxDays)
-	req.Header.Add("Max-Downloads", maxDownloads)
-
-	bar := pb.Full.Start64(size)
-	barReader := bar.NewProxyReader(reader)
-	req.Body = io.NopCloser(barReader)
-	req.ContentLength = size
-
-	req.SetBasicAuth(config.User, config.Pass)
-	resp, err := client.Do(req)
-	bar.Finish()
-
-	if err != nil {
-		return nil, fmt.Errorf("error uploading: %w", err)
-	}
-
-	err = lib.PrintResponse(resp, size, config, fileName)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return resp, nil
 }

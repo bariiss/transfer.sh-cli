@@ -1,6 +1,6 @@
 # transfersh
 
-`transfersh` is a Command-Line Interface (CLI) tool to easily upload files or directories to [transfer.sh](https://github.com/dutchcoders/transfer.sh). The app is specifically designed around the transfer.sh infrastructure.
+`transfersh-cli` is a Command-Line Interface (CLI) tool to easily upload files or directories to [transfer.sh](https://github.com/dutchcoders/transfer.sh). The app is specifically designed around the transfer.sh infrastructure.
 
 ## Features
 - Upload files or directories directly from the command line.
